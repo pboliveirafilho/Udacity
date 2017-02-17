@@ -139,7 +139,9 @@ library(&quot;e1071&quot;)</code></pre>
 <p><em>Resposta</em>: O conjunto apropriado de hipóteses para essa tarefa seria:</p>
 <p><span class="math inline">\(H_{0}:\mu_{conguente}=\mu_{inconguente}\)</span></p>
 <p><span class="math inline">\(H_{1}:\mu_{conguente}\not=\mu_{inconguente}\)</span></p>
-<p>Espera-se executar o <strong>teste t de Student</strong> devido ao fato de estarmos lidando com uma amostra de tamanho <span class="math inline">\(n&lt;30\)</span> e não conhecemos os valores verdadeiros da média e desvio padão da população de onde foi coletada a amostra.</p>
+<p>onde <span class="math inline">\(H_{0}\)</span> corresponde à hipótese nula, <span class="math inline">\(H_{1}\)</span> corresponde à hipótese alternativa e <span class="math inline">\(\mu\)</span> corresponde à média de tempo dos testes.</p>
+<p>Especificamente, estamos interessados em decidir se a média de tempo para realização dos testes Stroop congruente e incongruentes são ou não iguais (ou se existe ou não difernça entre as médias de tempo de realização dos testes). Nota-se que a hipótese alternativa <span class="math inline">\(H_{1}\)</span> é bilateral, desta forma a hipótese nula <span class="math inline">\(H_{0}\)</span> deve ser rejeitada caso haja difereça (positiva ou negativa) significativa entre as médias.</p>
+<p>Espera-se executar o <strong>teste t de Student</strong> devido ao fato de estarmos lidando com uma amostra de tamanho <span class="math inline">\(n&lt;30\)</span> e não conhecemos os valores verdadeiros da média e desvio padão da população de onde foi coletada a amostra. Nota-se que cada participante realiza, primeiramente, um teste Stroop congruente e em seguida realiza um teste Stroop congruente. Tal circunstância é característica de <em>amostras pareadas</em>.</p>
 </div>
 <div id="reporte-alguma-estatistica-descritiva-em-relacao-a-esse-conjunto-de-dados.-inclua-pelo-menos-uma-medida-de-tendencia-central-de-pelo-menos-uma-medida-de-variabilidade." class="section level4">
 <h4>3. Reporte alguma estatística descritiva em relação a esse conjunto de dados. Inclua, pelo menos, uma medida de tendência central de pelo menos uma medida de variabilidade.</h4>
@@ -274,11 +276,12 @@ BPInongruent    &lt;- boxplot(x = stroopdata$Incongruent,
 <h4>5. Agora desempenhe o teste estatístico e reporte seus resultados. Qual seu nível de confiança e o valor estatístico crítico? Você rejeitou a hipótese nula ou falhou ao tentar rejeitá-la? Encontre uma conclusão em relação ao experimento da tarefa. Os resultados estão de acordo com suas expectativas?</h4>
 <p>Foram realizados dois testes de hipóteses. O primeiro teste é um teste inferência para as variâncias. Para efeito deste deste, assume-se que os dados dos dois testes Stroop seguem uma distribuição normal. O objetivo do teste das variâncias é avaliar a hipótese de igualdade entre as mesmas.</p>
 <p>O segundo teste é um teste t de Studente para inferência na difernça entre médias de duas distribuições normais. Novamente assume-se que os dados dos testes Stroop seguem uma distribuição normal.</p>
-<pre class="r"><code>var.test(x = stroopdata$Congruent,
-         y = stroopdata$Incongruent,
-         ratio = 1,
-         alternative = &quot;two.sided&quot;,
-         conf.level = 0.95)</code></pre>
+<pre class="r"><code>teste.var &lt;- var.test(x = stroopdata$Congruent,
+                      y = stroopdata$Incongruent,
+                      ratio = 1,
+                      alternative = &quot;two.sided&quot;,
+                      conf.level = 0.95)
+print(teste.var)</code></pre>
 <pre><code>## 
 ##  F test to compare two variances
 ## 
@@ -290,24 +293,29 @@ BPInongruent    &lt;- boxplot(x = stroopdata$Incongruent,
 ## sample estimates:
 ## ratio of variances 
 ##          0.5505459</code></pre>
-<pre class="r"><code>t.test(x = stroopdata$Congruent,
-       y = stroopdata$Incongruent,
-       alternative = &quot;two.sided&quot;,
-       var.equal = TRUE,
-       conf.level = 0.95)</code></pre>
+<pre class="r"><code>teste.t &lt;- t.test(x = stroopdata$Congruent,
+                  y = stroopdata$Incongruent,
+                  alternative = &quot;two.sided&quot;,
+                  var.equal = TRUE,
+                  conf.level = 0.95,
+                  paired = TRUE)
+print(teste.t)</code></pre>
 <pre><code>## 
-##  Two Sample t-test
+##  Paired t-test
 ## 
 ## data:  stroopdata$Congruent and stroopdata$Incongruent
-## t = -6.5323, df = 46, p-value = 4.595e-08
+## t = -8.0207, df = 23, p-value = 4.103e-08
 ## alternative hypothesis: true difference in means is not equal to 0
 ## 95 percent confidence interval:
-##  -10.419121  -5.510462
+##  -10.019028  -5.910555
 ## sample estimates:
-## mean of x mean of y 
-##  14.05113  22.01592</code></pre>
+## mean of the differences 
+##               -7.964792</code></pre>
+<pre class="r"><code>t_critico &lt;- qt(p = (0.05/2), df = 23, lower.tail = TRUE)
+print(t_critico)</code></pre>
+<pre><code>## [1] -2.068658</code></pre>
 <p>O teste para as variâncias foi realizado considerando um nível de confiânça de 95%. O teste para as variâncias falhou em rejeitar a hipótese nula de igualdade, devido à obtenção de um p-valor superior ao nível de significância de 5%.. O teste também calculou o intervalo de confiânça para a razão entre as variâncias. Devido ao fato do valor unitário estar contido no intervalo de confiânça, o teste falhou em rejeitar a hipótese nula de igualdade entre as variâncias.</p>
-<p>O teste para as variâncias é importante para determinar a suposição de igualdade entre as variâncias no teste t de Student. O teste t foi realizado considerando um nível de confiânça de 95% e considerando a hipótese de igualdade entre as variâncias (resultado do teste para as variâncias). O teste t rejeitou a hipótese de igualdade entre as médias do teste Stroop congruente e incongruente, devido à obtenção de um p-valor inferior ao nível de significância de 5%. O teste t também obteve o intervalo de confiânça para a difernça entre as médias dos testes de Stroop. Devido ao fato do valor zero não estar contido no intervalo de confiânça, o teste rejeitou a hipótese nula de igualdade entre as médias.</p>
+<p>O teste para as variâncias é importante para determinar a suposição de igualdade entre as variâncias no teste t de Student. O teste t foi realizado considerando um nível de confiânça de 95%, amostras pareadas e considerando a hipótese de igualdade entre as variâncias (resultado do teste para as variâncias). O teste t rejeitou a hipótese de igualdade entre as médias do teste Stroop congruente e incongruente, devido à obtenção de um p-valor inferior ao nível de significância de 5%. O teste t também obteve o intervalo de confiânça para a difernça entre as médias dos testes de Stroop. Devido ao fato do valor zero não estar contido no intervalo de confiânça, o teste rejeitou a hipótese nula de igualdade entre as médias. O valor de t crítico também foi calculado. Avaliando o t crítico, podemos rejeitar a hipótese nula de igualdade entre as médias de tempo dos teste já que <span class="math inline">\(t_{0}\)</span> (-8.0207069) é menor do que <span class="math inline">\(t_{crítico}\)</span> (-2.0686576)</p>
 </div>
 <div id="opcional-o-que-voce-acha-que-e-responsavel-pelo-efeito-observado-consegue-pensar-em-uma-alternativa-ou-tarefa-similar-que-resultaria-em-um-efeito-parecido" class="section level4">
 <h4>6. Opcional: O que você acha que é responsável pelo efeito observado? Consegue pensar em uma alternativa ou tarefa similar que resultaria em um efeito parecido?</h4>
