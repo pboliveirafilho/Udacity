@@ -1,0 +1,905 @@
+PEDRO BARBOSA DE OLIVEIRA FILHO
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Carregue aqui todos os pacotes utilizados 
+# na sua análise realizada neste arquivo fonte.
+
+# Note que o parâmetro "echo" foi definido como FALSE neste código.
+# Isso previne que o código apresente resultados formatados em HTML.
+# Você deve definir  para todos os blocos de código no seu arquivo.
+
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(lubridate)
+library(psych)
+library(GGally)
+library(scales)
+library(ggthemes)
+library(gridExtra)
+library(corrplot)
+```
+
+# Visão Geral
+
+O conjunto de dados em estudo contém 4.898 vinhos brancos com 11 variáveis de propriedades químicas do vinho. Ao menos 3 especialistas em vinhos avaliaram cada vinho, fornecendo uma nota entre 0 (muito ruim) e 10 (muito excelente). Este [arquivo texto](https://s3.amazonaws.com/udacity-hosted-downloads/ud651/wineQualityInfo.txt) descreve as variáveis e como os dados foram coletados.
+
+# Questão Guia
+
+Quais propriedades químicas influenciam a qualidade dos vinhos brancos?
+
+```{r echo=FALSE, Load_the_Data}
+# Carregamento dos dados
+white_wine <- read.csv(file = "wineQualityWhites.csv")
+```
+
+# Seção de Gráficos Univariados
+
+Um resumo das 12 variáveis presentes no conjunto de dados é apresentado abaixo. Cada uma das variáveis será explorada separademente nesta seção.
+
+```{r}
+str(white_wine)
+
+summary(white_wine)
+```
+
+Nota-se que nenhuma das variáveis apresenta NA's.
+
+```{r}
+colSums(is.na(white_wine))
+```
+
+### Acidez Fixa - fixed acidity (tartaric acid - g / dm^3)
+
+Trata-se da maioria dos ácidos envolvidos com o vinho ou fixos ou não voláteis (não se evaporam prontamente).
+
+```{r}
+fa1 <- ggplot(aes(x = fixed.acidity), data = white_wine) +
+  geom_histogram(binwidth = 0.1)
+
+fa2 <- ggplot(aes(x = fixed.acidity, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(fa1, fa2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresnetam uma acidez fixa entre 6.3 e 7.3 g/dm^3. Também é possível perceber a presença de outliers.
+
+### Acidez Volátil - volatile acidity (acetic acid - g / dm^3)
+
+Trata-se da quantidade de ácido acético no vinho, que em altíssimos níveis pode levar a um gosto desagradável de vinagre.
+
+```{r}
+va1 <- ggplot(aes(x = volatile.acidity), data = white_wine) +
+  geom_histogram(binwidth = 0.01)
+
+va2 <- ggplot(aes(x = volatile.acidity, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(va1, va2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresnetam uma acidez volátil entre 0.21 e 0.32 g/dm^3. Também é possível perceber um crescimento à direita da cauda da distribuição. Pode-se utilizar a escala logarítmica de base 10 para aproximar a distribuição dos dados de acidez volátil de um formato normal.
+
+```{r}
+ggplot(aes(x = volatile.acidity), data = white_wine) +
+  geom_histogram(binwidth = 0.025) +
+  scale_x_log10()
+```
+
+### Ácido Cítrico - citric acid (g / dm^3)
+
+Encontrado em pequenas quantidades, o ácido cítrico pode adicionar frescor e sabor aos vinhos.
+
+```{r}
+ca1 <- ggplot(aes(x = citric.acid), data = white_wine) +
+  geom_histogram(binwidth = 0.01)
+
+ca2 <- ggplot(aes(x = citric.acid, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(ca1, ca2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam uma concentração de ácido cítrico entre 0.27 e 0.39 g/dm^3. Também é possível perceber mais de 200 vinhos apresentão uma concentração de ácido cítrico póxima a 0.50 g/dm^3.
+
+### Açúcar Residual - residual sugar (g / dm^3)
+
+Trata-se da quantidade de açúcar restante após a o fim da fermentação. É raro encontrar vinhos com menos de 1 g/L sendo os vinhos com mais de 45 g/L considerados doces.
+
+```{r}
+rs1 <- ggplot(aes(x = residual.sugar), data = white_wine) +
+  geom_histogram(binwidth = 0.25)
+
+rs2 <- ggplot(aes(x = residual.sugar, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(rs1, rs2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam concentração de acúcar residual entre 1.7 e 9.9 g/dm^3. Também é possível perceber que a distribuição apresenta uma cauda longa para a direita. Assim, podemos aplicar a escala logarítmica de base 10 para aproxiamar a distribuição da normal.
+
+```{r}
+ggplot(aes(x = residual.sugar), data = white_wine) +
+  geom_histogram(binwidth = 0.05) +
+  scale_x_log10()
+```
+
+A escala logarítmica revelou uma característica bimodal da distribuição de concentração de açúcar residual. O código abaixo permite afirmar que existem 77 vinhos com concentração inferior a 1 g/dm^3 e apenas 1 vinho doce.
+
+```{r}
+# Vinhos com concentração de açúcar residual inferior a 1 g/dm^3
+table(white_wine$residual.sugar<1)
+
+# Vinhos com concentração de açúcar residual superiro a 45 g/dm
+table(white_wine$residual.sugar>45)
+```
+
+### Cloretos - chlorides (sodium chloride - g / dm^3)
+
+Trata-se da quantidade de sal no vinho.
+
+```{r}
+c1 <- ggplot(aes(x = chlorides), data = white_wine) +
+  geom_histogram(binwidth = 0.001)
+
+c2 <- ggplot(aes(x = chlorides, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(c1, c2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam concentração de cloretos entre 0.036 e 0.050 g/dm^3. Também é possível perceber que existem alguns vinhos com concentrações de cloretos mais elevadas. Assim, podemos aplicar a escala logarítmica de base 10 para aproxiamar a distribuição da normal.
+
+```{r}
+ggplot(aes(x = chlorides), data = white_wine) +
+  geom_histogram(binwidth = 0.025) +
+  scale_x_log10()
+```
+
+### Dióxido de Enxofre Livre - free sulfur dioxide (mg / dm^3)
+
+A forma livre de SO2 existe em equilíbrio entre o SO2 molecular (como um gás dissolvido) e ion bisulfito. Trata-se de um agente que impede o crescimento microbiano e a oxidação do vinho.
+
+```{r}
+fsd1 <- ggplot(aes(x = free.sulfur.dioxide), data = white_wine) +
+  geom_histogram(binwidth = 1)
+
+fsd2 <- ggplot(aes(x = free.sulfur.dioxide, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(fsd1, fsd2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam uma concentração de dióxido de enxofre livre entre 23 e 46 mg/dm^3.
+
+### Dióxido de Enxofre Total - total sulfur dioxide (mg / dm^3)
+
+Quantidade de formas livres e ligadas de SO2. Em baixas concentrações, o SO2 é praticamete imperceptível no vinho. Entretando,  concentrações de SO2 livre acima de 50 ppm são perceptíveis ao olfato e paladar.
+
+```{r}
+tsd1 <- ggplot(aes(x = total.sulfur.dioxide), data = white_wine) +
+  geom_histogram(binwidth = 5)
+
+tsd2 <- ggplot(aes(x = total.sulfur.dioxide, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(tsd1, tsd2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam uma concentração total de dióxido de enxofre entre 108 e 167 mg/dm^3.
+
+### Densidade - density (g / cm^3)
+
+A densidade é próxima a da água dependendo do percentual de teor de álcool e açúcar.
+
+```{r}
+d1 <- ggplot(aes(x = density), data = white_wine) +
+  geom_histogram(binwidth = 0.0005)
+
+d2 <- ggplot(aes(x = density, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(d1, d2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam uma densidade entre 0.9917 e 0.9961 mg/cm^3.
+
+### pH
+
+Descreve o quão ácido ou básico está o vinho em uma escala de 0 (muito ácida) a 14 (muito básico). A maioria dos vinhos apresenta pH entre 3-4.
+
+```{r}
+ph1 <- ggplot(aes(x = pH), data = white_wine) +
+  geom_histogram(binwidth = 0.01)
+
+ph2 <- ggplot(aes(x = pH, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(ph1, ph2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam um pH entre 3.090 e 3.280.
+
+### Sulfatos - sulphates (potassium sulphate - g / dm3)
+
+Um aditivo que pode contribuir para os níveis de dióxido de enxofre (SO2), que atua como antimicrobiano e antioxidante.
+
+```{r}
+s1 <- ggplot(aes(x = sulphates), data = white_wine) +
+  geom_histogram(binwidth = 0.01)
+
+s2 <- ggplot(aes(x = sulphates, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(s1, s2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam uma concentração de sulfatos entre 0.41 e 0.55 g/dm^3.
+
+### Álcool - alcohol (% by volume)
+
+O percentual de conteúdo alcoólico do vinho.
+
+```{r}
+a1 <- ggplot(aes(x = alcohol), data = white_wine) +
+  geom_histogram(binwidth = 0.1)
+
+a2 <- ggplot(aes(x = alcohol, y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(a1, a2, ncol = 1)
+```
+
+Nota-se que a maioria dos vinhos apresentam um percentual de álcool entre 9.50 e 11.40. Utilizou-se a escala logarítmica para aproximar a distribuição à normalidade.
+
+```{r}
+ggplot(aes(x = alcohol), data = white_wine) +
+  geom_histogram() +
+  scale_x_log10()
+```
+
+### Qualidade - quality (score between 0 and 10)
+
+A variável de saída.
+
+```{r}
+q1 <- ggplot(aes(x = as.factor(quality)), data = white_wine) +
+  geom_bar()
+
+q2 <- ggplot(aes(x = as.factor(quality), y = X), data = white_wine) +
+  geom_jitter(alpha = 0.2)
+
+grid.arrange(q1, q2, ncol = 1)
+```
+
+Segundo os gráficos acima e a tabela abaixo, mais de 2000 vinhos apresentaram qualidade 6. Entretanto, tivemos uma pequena quantidade de vinhos com qualidade elevada (8 e 9) e reduzida (3 e 4). 
+
+```{r}
+white_wine %>%
+  group_by(as.factor(quality)) %>%
+  summarise(total = n())
+```
+
+# Análise Univariada
+
+### Qual é a estrutura do conjunto de dados?
+
+O conjunto de dadados possui 13 variáveis e 4898 observações. Considerando que a variável **X** representa a identificação do vinho, podemos dizer que o conjunto de dados possui 12 variáveis, sendo 11 variáveis de entrada (propriedades químicas do vinho brando) e 1 variável de saída (a nota de qualidade atribuída pelos expecialistas). Algumas observações apresentadas na **Seção de Gráficos Univariados** são recaptuladas abaixo:
+
+* A maioria dos vinhos apresnetam uma **acidez fixa** entre 6.3 e 7.3 g/dm^3.
+* A maioria dos vinhos apresnetam uma **acidez volátil** entre 0.21 e 0.32 g/dm^3.
+* A maioria dos vinhos apresentam uma concentração de **ácido cítrico** entre 0.27 e 0.39 g/dm^3.
+* A maioria dos vinhos apresentam concentração de **acúcar residual** entre 1.7 e 9.9 g/dm^3.
+* A maioria dos vinhos apresentam concentração de **cloretos** entre 0.036 e 0.050 g/dm^3.
+* A maioria dos vinhos apresentam uma concentração de **dióxido de enxofre livre** entre 23 e 46 mg/dm^3.
+* A maioria dos vinhos apresentam uma concentração de **dióxido de enxofre total** entre 108 e 167 mg/dm^3.
+* A maioria dos vinhos apresentam uma **densidade** entre 0.9917 e 0.9961 mg/cm^3.
+* A maioria dos vinhos apresentam um **pH** entre 3.090 e 3.280.
+* A maioria dos vinhos apresentam uma concentração de **sulfatos** entre 0.41 e 0.55 g/dm^3.
+* A maioria dos vinhos apresentam um percentual de **álcool** entre 9.50 e 11.40.
+
+### Quais são os principais atributos de interesse deste conjunto de dados?
+
+Avaliando cada uma das 11 variáveis de entrada individualmente, não foi possível identificar quais as propriedades químicas apresentam maior influência na qualidade do vinho branco. Entretanto, a partir da leitura do [arquivo texto que descreve as variáveis](https://s3.amazonaws.com/udacity-hosted-downloads/ud651/wineQualityInfo.txt) acredita-se que os principais atributos de interesse sejam:
+
+* Acidez volatel
+* Ácido cítrico
+* Açúcar residual
+* Dióxido de enxofre total
+* pH
+* Sulfatos
+
+Na **Seção de Gráficos Bivariados** será investigado o relacionamento entre as propriedades químicas e a nota de qualidade dos vinhos atribuída pelos especialistas.
+
+### Quais outros atributos você acha que podem lhe auxiliar na investigação destes atributos de interesse?
+
+Todas as 11 variáveis serão investigadas **Seção de Gráficos Bivariados** 
+
+### Você criou novas variáveis a partir dos atributos existentes no conjunto de dados?
+
+Não foi necessário a criação de novas variáveis.
+
+### Dos atributos investigados, distribuições incomuns foram encontradas? Você aplicou operações nos dados para limpá-los, ajustá-los ou mudar a forma dos dados? Se sim, por quê?
+
+A concentração de **açúcar residual** apresentou uma distribuição com uma longa cauda à direita, enquanto a porcentagem de **álcool** apresentou característas similares à uma distribuição uniforme. Utilizou-se a escala logarítmica para alterar a forma dos dados e faze-los similares à distribuição normal.
+
+# Seção de Gráficos Bivariados
+
+Para o melhor entendimento sobre a influência das propriedades químicas na qualidade dos vinhos, serão avaliadas as correlações entre as propriedades físicas e a nota de qualidade. O gráfico abaixo apresenta a matriz de correlação das variáveis.
+
+```{r}
+corrplot(cor(white_wine), method = "number")
+```
+
+```{r}
+ggpairs(white_wine)
+```
+
+As propriedades físicas que apresentaram correlação superior a 0.1 (em módulo) estão listadas abaixo. Entretanto, nesta seção serão exibidos gráficos bivariados relacionando cada propriedade química com a qualidade do vinho branco, individualmente.
+
+* Acidez fixa (`r cor(x = white_wine$fixed.acidity, y = white_wine$quality)`)
+* Acidez volátil (`r cor(x = white_wine$volatile.acidity, y = white_wine$quality)`)
+* Cloretos (`r cor(x = white_wine$chlorides, y = white_wine$quality)`)
+* Dióxido de enxofre total (`r cor(x = white_wine$total.sulfur.dioxide, y = white_wine$quality)`)
+* Densidade (`r cor(x = white_wine$density, y = white_wine$quality)`)
+* Porcentagem de álcool (`r cor(x = white_wine$alcohol, y = white_wine$quality)`)
+
+#### Acidez Fixa Vs. Qualidade
+
+```{r}
+ggplot(aes(x = fixed.acidity), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r}
+bfa1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(fixed.acidity), mediana = median(fixed.acidity)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "fixed.acidity", limits = c(6.6,7.6), breaks = seq(6.6,7.6,0.1)) +
+  theme(legend.title = element_blank())
+
+bfa2 <- ggplot(aes(x = as.factor(quality), y = fixed.acidity), data = white_wine) +
+  geom_boxplot()
+
+grid.arrange(bfa1, bfa2, ncol = 1)
+```
+
+#### Acidez Volátil Vs. Qualidade
+
+```{r}
+ggplot(aes(x = volatile.acidity), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r}
+bva1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(volatile.acidity), mediana = median(volatile.acidity)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "volatile.acidity", limits = c(0.25,0.40), breaks = seq(0.25,0.40,0.05)) +
+  theme(legend.title = element_blank())
+
+bva2 <- ggplot(aes(x = as.factor(quality), y = volatile.acidity), data = white_wine) +
+  geom_boxplot()
+
+grid.arrange(bva1, bva2, ncol = 1)
+```
+
+#### Ácido Cítrico Vs. Qualidade
+
+```{r}
+ggplot(aes(x = citric.acid), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r}
+bca1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(citric.acid), mediana = median(citric.acid)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "citric.acid", limits = c(0.28,0.40), breaks = seq(0.28,0.40,0.02)) +
+  theme(legend.title = element_blank())
+
+bca2 <- ggplot(aes(x = as.factor(quality), y = citric.acid), data = white_wine) +
+  geom_boxplot()
+
+grid.arrange(bca1, bca2, ncol = 1)
+```
+
+#### Açúcar Residual Vs. Qualidade
+
+```{r}
+ggplot(aes(x = residual.sugar), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality) +
+  scale_x_log10()
+```
+
+```{r}
+brs1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(log10(residual.sugar)), mediana = median(log10(residual.sugar))) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "residual.sugar", limits = c(0.3,0.9), breaks = seq(0.3,0.9,0.05)) +
+  theme(legend.title = element_blank())
+
+brs2 <- ggplot(aes(x = as.factor(quality), y = residual.sugar), data = white_wine) +
+  geom_boxplot() +
+  scale_y_log10()
+
+grid.arrange(brs1, brs2, ncol = 1)
+```
+
+#### Cloretos Vs. Qualidade
+
+```{r}
+ggplot(aes(x = chlorides), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality) +
+  scale_x_log10()
+```
+
+```{r}
+bc1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(log10(chlorides)), mediana = median(log10(chlorides))) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "chlorides", limits = c(-1.6,-1.3), breaks = seq(-1.6,-1.3,0.05)) +
+  theme(legend.title = element_blank())
+
+bc2 <- ggplot(aes(x = as.factor(quality), y = chlorides), data = white_wine) +
+  geom_boxplot() +
+  scale_y_log10()
+
+grid.arrange(bc1, bc2, ncol = 1)
+```
+
+#### Dióxido de Enxofre Livre Vs. Qualidade
+
+```{r}
+ggplot(aes(x = free.sulfur.dioxide), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality) +
+  scale_x_log10()
+```
+
+```{r}
+bfsd1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(log10(free.sulfur.dioxide)), mediana = median(log10(free.sulfur.dioxide))) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "free.sulfur.dioxide", limits = c(1.2,1.6), breaks = seq(1.2,1.6,0.05)) +
+  theme(legend.title = element_blank())
+
+bfsd2 <- ggplot(aes(x = as.factor(quality), y = free.sulfur.dioxide), data = white_wine) +
+  geom_boxplot() +
+  scale_y_log10()
+
+grid.arrange(bfsd1, bfsd2, ncol = 1)
+```
+
+#### Dióxido de Enxofre Total Vs. Qualidade
+
+```{r}
+ggplot(aes(x = total.sulfur.dioxide), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r}
+btsd1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(total.sulfur.dioxide), mediana = median(total.sulfur.dioxide)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "total.sulfur.dioxide", limits = c(110,180), breaks = seq(110,180,10)) +
+  theme(legend.title = element_blank())
+
+btsd2 <- ggplot(aes(x = as.factor(quality), y = total.sulfur.dioxide), data = white_wine) +
+  geom_boxplot()
+
+grid.arrange(btsd1, btsd2, ncol = 1)
+```
+
+#### Densidade Vs. Qualidade
+
+```{r}
+ggplot(aes(x = density), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r }
+bd1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(density), mediana = median(density)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "density") +
+  theme(legend.title = element_blank())
+
+bd2 <- ggplot(aes(x = as.factor(quality), y = density), data = white_wine) +
+  geom_boxplot() +
+  scale_y_continuous(limits = c(0.985, 1.01))
+
+grid.arrange(bd1, bd2, ncol = 1)
+```
+
+#### pH Vs. Qualidade
+
+```{r }
+ggplot(aes(x = pH), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r }
+bph1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(pH), mediana = median(pH)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "pH") +
+  theme(legend.title = element_blank())
+
+bph2 <- ggplot(aes(x = as.factor(quality), y = pH), data = white_wine) +
+  geom_boxplot()
+  
+grid.arrange(bph1, bph2, ncol = 1)
+```
+
+#### Sulfatos Vs. Qualidade
+
+```{r }
+ggplot(aes(x = sulphates), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality)
+```
+
+```{r }
+bs1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(sulphates), mediana = median(sulphates)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "sulphates") +
+  theme(legend.title = element_blank())
+
+bs2 <- ggplot(aes(x = as.factor(quality), y = sulphates), data = white_wine) +
+  geom_boxplot()
+
+grid.arrange(bs1, bs2, ncol = 1)
+```
+
+#### Álcool Vs. Qualidade
+
+```{r }
+ggplot(aes(x = alcohol), data = white_wine) +
+  geom_histogram() +
+  facet_wrap(facets = ~quality) +
+  scale_x_log10()
+```
+
+```{r }
+ba1 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(media = mean(alcohol), mediana = median(alcohol)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_x_continuous(limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "alcohol") +
+  theme(legend.title = element_blank())
+
+ba2 <- ggplot(aes(x = as.factor(quality), y = alcohol), data = white_wine) +
+  geom_boxplot()
+
+grid.arrange(ba1, ba2, ncol = 1)
+```
+
+# Análise Bivariada
+
+### Discuta sobre alguns dos relacionamentos observados nesta parte da investigação. Como os atributos de interesse variaram no conjunto de dados?
+
+Os atributos de interesse selecionados na seção de análise univariada e suas respectivas correlações lineares com a variável qualidade estão apresnetados abaixo. Nota-se que apenas as propriedades de acidez volátil e dióxido de enxofre total apresentaram coeficientes de correlação superiore (em módulo) a 0.1, indicando que apesar de tais propriedades serem fundamentais para a qualidade do vinho, no conjunto de dados em estudo, tais propriedades não estão sendo determinantes para a nota de qualidade dada pelos especialistas.
+
+* Acidez volatel (`r cor(x = white_wine$volatile.acidity, y = white_wine$quality)`)
+* Ácido cítrico (`r cor(x = white_wine$citric.acid, y = white_wine$quality)`)
+* Açúcar residual (`r cor(x = white_wine$residual.sugar, y = white_wine$quality)`)
+* Dióxido de enxofre total (`r cor(x = white_wine$total.sulfur.dioxide, y = white_wine$quality)`)
+* pH (`r cor(x = white_wine$pH, y = white_wine$quality)`)
+* Sulfatos (`r cor(x = white_wine$sulphates, y = white_wine$quality)`)
+
+### Você observou algum relacionamento interessante entre os outros atributos (os que não são de interesse)?
+
+Foi investigado o relacionamento de todas as propriedades químicas com a variável (de saída) qualidade. A análise da correlação linear entre as variáveis realizada nesta seção revelou as propriedades químicas de interesse apresentadas abaixo, com base no coeficiente de correlação (> 0.1).
+
+* Acidez fixa (`r cor(x = white_wine$fixed.acidity, y = white_wine$quality)`)
+* Acidez volátil (`r cor(x = white_wine$volatile.acidity, y = white_wine$quality)`)
+* Cloretos (`r cor(x = white_wine$chlorides, y = white_wine$quality)`)
+* Dióxido de enxofre total (`r cor(x = white_wine$total.sulfur.dioxide, y = white_wine$quality)`)
+* Densidade (`r cor(x = white_wine$density, y = white_wine$quality)`)
+* Porcentagem de álcool (`r cor(x = white_wine$alcohol, y = white_wine$quality)`)
+
+No decorrer da análise bivariada, verificou-se que as propriedade química **pH**, apesar de apresentar um coeficiente de correlação linear inferior a 0.1, apresentou um comportamento crescente para vinhos brancos de melhor qualidade. As propriedades  **ácido cítrico**, **açúcar residual** e **sulfatos** ditas inicialmente de interesse, não tiveram sua influênca na qualidade do vinho branco confirmadas nesta seção.
+
+### Qual foi o relacionamento mais forte encontrado?
+
+A análise bivariada revelou o forte relacionamento entre a porcentagem de álcool e a qualidade do vinho, que apresentou uma correlação linear de moderada positiva de (`r cor(x = white_wine$alcohol, y = white_wine$quality)`).
+
+# Seção de Gráficos Multivariados
+
+#### Álcool & Densidade Vs. Qualidade
+
+Avaliou-se as duas propriedades químicas que apresentaram a maior correlação com a qualidade do vinho branco. É interessante notar que a porcentagem de álcool e a densidade do vinho branco também apresentam uma forte correlação entre si (`r cor(x = white_wine$alcohol, y = white_wine$density)`).
+
+```{r}
+ggplot(aes(x = density, y = alcohol, color = as.factor(quality)), data = white_wine) +
+  geom_jitter()
+```
+
+```{r}
+ggplot(aes(x = density, y = alcohol, color = as.factor(quality)), data = white_wine) +
+  geom_jitter() +
+  facet_wrap(facets = ~quality)
+```
+
+Os gráficos acima ilustram a forte correlação negativa entre as propriedades químicas álcool e densidade. Entretanto, a diversidade de notas de qualidade atribuídas aos vinhos brancos não permite uma visualização eficiente dos dados.
+
+O código abaixo lembra-nos que exitem poucos vinhos brancos de qualidade 3-4 e 8-9.
+
+```{r}
+white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  group_by(quality) %>%
+  summarise(total = n())
+```
+
+Com o objetivo de faciliatr a visualização dos dados, criou-se uma nova variável (*bucket_quality*) que classifica os vinhos brancos em *bad* (3 e 4), *ordinary* (5, 6 e 7) e *good*. Os próximos gráficos da presente seção buscam avaliar as propriedades químicas que diferem os vinhhos brancos entre *bad* e *good*.
+
+```{r }
+white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = ifelse(quality == "3" | quality == "4", "bad",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "ordinary",
+         ifelse(quality == "8" | quality == "9", "good", "no score")))) %>%
+  filter(bucket_quality == "bad" | bucket_quality == "good") %>%
+  ggplot(aes(x = density, y = alcohol, color = bucket_quality)) +
+  geom_jitter()
+```
+
+Observando o gráfico acima nota-se que os melhores vinhos brancos tendem a apresentar uma maior porcentagem de álcool e menor densidade.
+
+#### Açúcar Residual & Densidade Vs. Qualidade
+
+As propriedades químicas açúcar residual e densidade apresentam a maior correlação entre as propriedades do vinho branco (`r cor(x = white_wine$residual.sugar, y = white_wine$density)`). O gráfico abaixo mostra a variação destas duas propriedades químicas em função da qualidade do vinho branco.
+
+```{r}
+white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = ifelse(quality == "3" | quality == "4", "bad",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "ordinary",
+         ifelse(quality == "8" | quality == "9", "good", "no score")))) %>%
+  filter(bucket_quality == "bad" | bucket_quality == "good") %>%
+  ggplot(aes(x = density, y = residual.sugar, color = bucket_quality)) +
+  geom_jitter()
+```
+
+#### Álcool & Cloretos Vs. Qualidade
+
+```{r}
+white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = ifelse(quality == "3" | quality == "4", "bad",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "ordinary",
+         ifelse(quality == "8" | quality == "9", "good", "no score")))) %>%
+  filter(bucket_quality == "bad" | bucket_quality == "good") %>%
+  ggplot(aes(x = chlorides, y = alcohol, color = bucket_quality)) +
+  geom_jitter()
+```
+
+#### Cloretos & Densidade Vs. Qualidade
+
+```{r}
+white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = ifelse(quality == "3" | quality == "4", "bad",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "ordinary",
+         ifelse(quality == "8" | quality == "9", "good", "no score")))) %>%
+  filter(bucket_quality == "bad" | bucket_quality == "good") %>%
+  ggplot(aes(x = density, y = chlorides, color = bucket_quality)) +
+  geom_jitter()
+```
+
+# Análise Multivariada
+
+### Discuta sobre os relacionamentos observados nesta parte da investigação. Quais atributos que fortaleceram os demais na observação das variáveis de interesse?
+
+### Interações surpreendentes e/ou interessantes foram encontradas entre os atributos?
+
+A relação entre as propriedades químicas densidade, álcool e açucar residual era esperda. Entertanto, foi interessante vericar que, para este conjunto de dados, as propriedades químicas relacionada a acidez e enxofre não apresentaram correlação significativa com a qualidade dos vinhos brancos.
+
+### OPCIONAL: Modelos foram criados usando este conjunto de dados? Discuta sobre os pontos fortes e as limitações do seu modelo.
+
+Até o presente momento, não criei modelos a partir do banco de dados em estudo.
+
+------
+
+# Gráficos Finais e Sumário
+
+### Primeiro Gráfico
+```{r , Plot_One}
+fg1 <- white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  ggplot(aes(x = quality, fill = quality)) +
+  geom_bar() +
+  scale_fill_economist() +
+  scale_x_discrete(name = "") +
+  scale_y_continuous(name = "nº") +
+  theme_light() +
+  theme(legend.position = "none")
+
+fg2 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(total = n(), media = mean(alcohol), mediana = median(alcohol)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_color_economist() +
+  scale_x_continuous(name = "", limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "% de Álcool") +
+  theme_light() +
+  theme(legend.title = element_blank(),
+        legend.justification=c(0,1),
+        legend.position = c(0.3,0.99))
+
+fg3 <- white_wine %>%
+  group_by(quality) %>%
+  summarise(total = n(), media = mean(density), mediana = median(density)) %>%
+  ggplot(aes(x = quality)) +
+  geom_line(aes(y = media, color = "média")) +
+  geom_line(aes(y = mediana, color = "mediana")) +
+  scale_color_economist() +
+  scale_x_continuous(name = "Qualidade", limits = c(3,9), breaks = seq(3,9,1)) +
+  scale_y_continuous(name = "Densidade") +
+  theme_light() +
+  theme(legend.title = element_blank(),
+        legend.justification=c(0,0),
+        legend.position = c(0.01,0))
+
+grid.arrange(fg1, fg2, fg3, ncol = 1, nrow = 3)
+```
+
+### Descrição do Primeiro Gráfico
+
+O gráfico acima mostra: (1) a distribuição dos vinhos brancos quanto à nota de **qualidade** dada pelos especialistas; (2) o comportamento das estatísticas média e mediana para a **porcentágem de álcool** presente no vinho branco para cada uma das sete classificações de qualidade; e (3) o comportamento das estatísticas média e mediana para a **densidade** do vinho branco para cada uma das sete classificações de qualidade. Nota-se que mais de 2000 vinhos apresentaram qualidade 6, enquanto que, os somatórios do número de vinhos com quaslidade igual ou inferior a 4, ou igual ou superior a 8 são inferiores a 200. Também é possível observar que vinhos com alta porcentágem de álcool e baixa densidade apresentam melhor qualidade.
+
+### Segundo Gráfico
+```{r , Plot_Two}
+white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = factor(ifelse(quality == "3" | quality == "4", "Ruim",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "Comum",
+         ifelse(quality == "8" | quality == "9", "Bom", NA))), levels = c("Ruim", "Comum", "Bom"))) %>%
+  ggplot(aes(x = density, y = alcohol, color = bucket_quality)) +
+  geom_jitter(alpha = 0.2) +
+  scale_color_brewer(type='qual') +
+  geom_smooth(method = "lm", color = "grey45") +
+  facet_wrap(facets = ~bucket_quality) +
+  scale_x_continuous(name = "Densidade", limits = c(0.98,1.005), breaks = seq(0.98,1.005,0.01)) +
+  scale_y_continuous(name = "% de Álcool", breaks = seq(8,14,1)) +
+  ggtitle(label = "Relação Álcool Vs. Densidade") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+```
+
+### Descrição do Segundo Gráfico
+
+No segundo gráfico, os vinhos brancos foram reclassificados segundo sua nota de qualidade:
+
+* Qualidade 3-4: Ruim
+* Qualidade 5-7: Comum
+* Qualidade 8-9: Bom
+
+O segundo gráfico avalia a correlação linear entre as variáveis % de álcool e densidade para as novas classificações de qualidade. As propriedades químicas porcentágem de álcool e densidade apresnetam uma forte correlação linear negativa (`r cor(x = white_wine$alcohol, y = white_wine$density)`) entre si.
+
+### Terceiro Gráfico
+```{r , Plot_Three}
+tg1 <- white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = factor(ifelse(quality == "3" | quality == "4", "Ruim",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "Comum",
+         ifelse(quality == "8" | quality == "9", "Bom", NA))), levels = c("Ruim", "Comum", "Bom"))) %>%
+  filter(bucket_quality == "Ruim" | bucket_quality == "Bom") %>%
+  ggplot(aes(x = bucket_quality, y = alcohol, color = bucket_quality, fill = bucket_quality)) +
+  geom_violin(alpha = 0.5) +
+  geom_boxplot(width=.1, color = "black") +
+  scale_y_continuous(name = "% de Álcool", breaks = seq(8,14,1)) +
+  scale_x_discrete(name = "Qualidade") +
+  ggtitle(label = "% de Álcool no Vinho Branco") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+tg2 <- white_wine %>%
+  mutate(quality = as.factor(quality)) %>%
+  mutate(bucket_quality = factor(ifelse(quality == "3" | quality == "4", "Ruim",
+         ifelse(quality == "5" | quality == "6" | quality == "7", "Comum",
+         ifelse(quality == "8" | quality == "9", "Bom", NA))), levels = c("Ruim", "Comum", "Bom"))) %>%
+  filter(bucket_quality == "Ruim" | bucket_quality == "Bom") %>%
+  ggplot(aes(x = bucket_quality, y = density, color = bucket_quality, fill = bucket_quality)) +
+  geom_violin(alpha = 0.5) +
+  geom_boxplot(width=.1, color = "black") +
+  scale_y_continuous(name = "Densidade", breaks = seq(0.985, 1.0025,0.0025)) +
+  scale_x_discrete(name = "Qualidade") +
+  ggtitle(label = "Densidade no Vinho Branco") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+grid.arrange(tg1, tg2, ncol = 2)
+```
+
+### Descrição do Terceiro Gráfico
+
+O terceiro gráfico também utiliza a mesma classificação de qualidade do segundo gráfico. Entretanto, o terceiro gráfico traz apenas os dados dos vinhos brancos Bons e Ruins com o propósito de ressaltar suas diferenças. Este gráfco apresneta violin plots e box plots das propriedades químicas álcool e densidade para os vinhos brancos classificados com Bons e Ruins. Foram utilizados box plots para ressaltar a posição da mediana e a presença de outliers. Nota-se que existem vinhos brancos classificados como Bons que apresentam baixo teor de álcool e alta densidade.
+
+------
+
+# Reflexão
+
+A presente análise exploratória dos dados referentes às propriedades químicas e qualidade de vinhos brancos apontou para as seguintes conclusões:
+
+1. Vinhos com qualidade igual a 6 são mais frequentes.
+2. As propriedades químicas **densidade** e **açúcar residual** apresentam a mais forte correlação dentre as variáveis esploradas (`r cor(x = white_wine$density, y = white_wine$residual.sugar)`), indicando que quando a concentração de açúcar residual aumenta, a densidade também aumenta.
+3. As propriedades químicas porcentágem de **álcool** e **densidade** apresentam uma forte correlação linear negativa (`r cor(x = white_wine$alcohol, y = white_wine$density)`), indicando que quanto maior a concentração de álcool, menor será a densidade do vinho branco.
+4. A propriedade química **cloretos** apresenta a terceira maior correlação linear com a variável **qualidade** (`r cor(x = white_wine$chlorides, y = white_wine$quality)`).
+5. As variáveis **cloretos** e **álcool** apresnetam uma correlação linear negativa (`r cor(x = white_wine$chlorides, y = white_wine$alcohol)`).
+6. As variáveis **cloretos** e **densidade** apresnetam uma correlação linear positiva (`r cor(x = white_wine$chlorides, y = white_wine$density)`).
+
+Não é possível desconsiderar o gosto pessoal dos especialistas que avaliaram os vinhos brancos. Seria interessante e enriquecedor para a análise conhecer a nota de cada especialista para cada vinho. O conhecimento de outras variáveis como ano da safra, tipo da uva e marca do vinho também entiqueceriam a análise. 
+Em análises futuras, pretendo investigas se exite algum tipo de consistência nos vinhos brancos que aparecem como outliers no terceiro gráfico, além da criação de modelos de previsão.
+
+# Referências
+
+P. Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis. Modeling wine preferences by data mining from physicochemical properties. In Decision Support Systems, Elsevier, 47(4):547-553. ISSN: 0167-9236.
+
+Available at: 
+
+* [@Elsevier] http://dx.doi.org/10.1016/j.dss.2009.05.016
+* [Pre-press (pdf)] http://www3.dsi.uminho.pt/pcortez/winequality09.pdf
+* [bib] http://www3.dsi.uminho.pt/pcortez/dss09.bib
+
