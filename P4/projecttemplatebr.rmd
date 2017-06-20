@@ -19,8 +19,6 @@ library(scales)
 library(ggthemes)
 library(gridExtra)
 library(corrplot)
-library(MASS)
-library(memisc)
 ```
 
 # Visão Geral
@@ -515,8 +513,8 @@ A escala logarítmica também foi aplicada às variáveis **acidez volátil**, *
 
 Para o melhor entendimento sobre a influência das propriedades químicas na qualidade dos vinhos, serão avaliadas as correlações entre as propriedades físicas e a nota de qualidade. O gráfico abaixo apresenta a matriz de correlação das variáveis.
 
-```{r}
-corrplot(cor(white_wine[2:13]), method = "number")
+```{r echo=FALSE, warning=FALSE, fig.height=9, fig.width=9}
+corrplot(cor(subset(white_wine, select = -c(X, new_quality))), method = "number")
 ```
 
 As propriedades químicas mais fortemente correlacionadas com a qualidade dos vinhos brancos estão listadas abaixo:
@@ -937,6 +935,18 @@ white_wine %>%
 
 O gráfico acima mostra, que para uma mesma densidade, os vinhos branco com maior concentração de açúcar residual tendem a apresentar melhor qualidade.
 
+#### Açúcar Residual & Álcool Vs. Qualidade
+
+```{r echo=FALSE, warning=FALSE}
+white_wine %>%
+  filter(new_quality != "Comum") %>%
+  ggplot(aes(x = alcohol, y = residual.sugar, color = new_quality)) +
+  geom_jitter() +
+  geom_smooth(method = "lm")
+```
+
+Observando o gráfico acima não é possível observar uma correlação linear entre o teor de álcool e a concentração de açúcar residual. Entretanto, nota-se que, considerando o mesmo teor de álcool, vinhos brancos com maior concentração de açúcar residual tendem a apresnetar melhor qualidade.
+
 #### Açúcar Residual & Ácido Cítrico Vs. Qualidade
 
 ```{r echo=FALSE, warning=FALSE}
@@ -1031,29 +1041,37 @@ grid.arrange(pg1, pg2, ncol = 2)
 
 ### Descrição do Primeiro Gráfico
 
-O *Primeiro gráfico* a classificação original da qualidade dos vinhos brancos dada pelos especialistas e a nova classificação de qualidade sugerida pelo autor no decorrer da análise:
+O *Primeiro gráfico* apresneta a classificação original da qualidade dos vinhos brancos dada pelos especialistas e a nova classificação de qualidade sugerida pelo autor no decorrer da análise:
 
 * Qualidade 3-4: Ruim
 * Qualidade 5-7: Comum
 * Qualidade 8-9: Bom
 
+Nota-se que a distribuição das notas de qualidade dos vinhos brancos apresenta comportamento semelhante à distribuição normal, sendo a maioria dos vinhos (> 4000) classificados com notas intermediárias (5, 6 e 7). A nota de qualidade em destaque é a nota 6. Vinhos considerados bons e ruins são igualmente incomuns no conjunto de dados analisado.
+
 ### Segundo Gráfico
 ```{r echo=FALSE, warning=FALSE, Plot_Two}
-ggplot(aes(x = new_quality, y = residual.sugar,
-           fill = new_quality, color = new_quality),
+ggplot(aes(x = density, y = residual.sugar,
+           color = new_quality),
        data = white_wine) +
-  geom_violin(alpha = 0.5) +
-  geom_boxplot(width=.1, color = "black") +
-  scale_y_log10(name = "log10(Açúcar Residual) / (g.dm^-3)") +
-  scale_x_discrete(name = "Qualidade") +
-  ggtitle(label = "Violin Box Plot - Variação do Açúcar Residual") +
+  geom_smooth(method = "lm") +
+  scale_y_continuous(name = "Açúcar Residual / (g.cm^-3)",
+                     limits = c(0, 20),
+                     breaks = seq(0, 20, 2.5)) +
+  scale_x_continuous(name = "Densidade / (g.cm^-3)",
+                     limits = c(0.990, 1.000),
+                     breaks = seq(0.990, 1.000, 0.001)) +
+  ggtitle(label = "Relação Açúcar Residual Vs. Densidade") +
+  theme_light() +
   theme(plot.title = element_text(hjust = 0.5),
-        legend.position = "none")
+        legend.title = element_blank(),
+        legend.justification=c(1,0),
+        legend.position=c(1,0))
 ```
 
 ### Descrição do Segundo Gráfico
 
-O *Segundo Gráfico* mostra a variação da concentração do açúcar residual nos vinhos brancos classificados como *Ruim*, *Comum*, e *Bom*. O gráfico representa um das principais descobertas da *Seção de Gráficos Univariados*, o comportamento bimodal da concentração de açúcar residual revelado pela utilização da escala logarítmica.
+O *Segundo gráfico* ilustra a forte correlação positiva (`r cor(white_wine$residual.sugar, white_wine$density)`) entre a concentração de açúcar residual e densidade dos vinhos brancos através de linhas de tendência. O objetivo é mostrar que, apesar da quase inexistência de correlação entre a concentração de açúcar residual e a qualidade dos vinhos brancos (`r cor(white_wine$residual.sugar, white_wine$quality)`), considerando uma mesma densidade, os melhores vinhos brancos tendem a apresentar maior concentração de açúcar residual.
 
 ### Terceiro Gráfico
 ```{r echo=FALSE, warning=FALSE, Plot_Three}
@@ -1065,8 +1083,11 @@ ggplot(aes(x = density, y = alcohol, color = new_quality),
   geom_smooth(method = "lm", color = "black") +
   scale_color_economist() +
   facet_wrap(facets = ~new_quality) +
-  scale_x_continuous(name = "Densidade / (g.cm^-3)", limits = c(0.985,1.005), breaks = seq(0.985,1.005,0.01)) +
-  scale_y_continuous(name = "% de Álcool", breaks = seq(8,14,1)) +
+  scale_x_continuous(name = "Densidade / (g.cm^-3)",
+                     limits = c(0.985,1.005),
+                     breaks = seq(0.985,1.005,0.01)) +
+  scale_y_continuous(name = "% de Álcool",
+                     breaks = seq(8,14,1)) +
   ggtitle(label = "Relação Álcool Vs. Densidade") +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = "none")
